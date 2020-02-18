@@ -28,11 +28,12 @@ from zipline.utils.input_validation import (
     ensure_dtype,
     expect_types,
 )
-from zipline.utils.numpy_utils import NoDefaultMissingValue
+from zipline.utils.numpy_utils import float64_dtype, NoDefaultMissingValue
 from zipline.utils.preprocess import preprocess
 from zipline.utils.string_formatting import bulleted_list
 
 
+Disallowed = sentinel('Disallowed')
 IsSpecialization = sentinel('IsSpecialization')
 
 
@@ -45,11 +46,13 @@ class Column(object):
                  dtype,
                  missing_value=NotSpecified,
                  doc=None,
-                 metadata=None):
+                 metadata=None,
+                 currency_aware=False):
         self.dtype = dtype
         self.missing_value = missing_value
         self.doc = doc
         self.metadata = metadata.copy() if metadata is not None else {}
+        self.currency_aware = currency_aware
 
     def bind(self, name):
         """
@@ -61,6 +64,7 @@ class Column(object):
             name=name,
             doc=self.doc,
             metadata=self.metadata,
+            currency_aware=self.currency_aware,
         )
 
 
@@ -72,7 +76,13 @@ class _BoundColumnDescr(object):
     This exists so that subclasses of DataSets don't share columns with their
     parent classes.
     """
-    def __init__(self, dtype, missing_value, name, doc, metadata):
+    def __init__(self,
+                 dtype,
+                 missing_value,
+                 name,
+                 doc,
+                 metadata,
+                 currency_aware):
         # Validating and calculating default missing values here guarantees
         # that we fail quickly if the user passes an unsupporte dtype or fails
         # to provide a missing value for a dtype that requires one
@@ -96,6 +106,7 @@ class _BoundColumnDescr(object):
         self.name = name
         self.doc = doc
         self.metadata = metadata
+        self.currency_aware = currency_aware
 
     def __get__(self, instance, owner):
         """
@@ -104,6 +115,11 @@ class _BoundColumnDescr(object):
         We don't bind to datasets at class creation time so that subclasses of
         DataSets produce different BoundColumns.
         """
+        if self.currency_aware:
+            currency_conversion = None
+        else:
+            currency_conversion = Disallowed
+
         return BoundColumn(
             dtype=self.dtype,
             missing_value=self.missing_value,
@@ -111,7 +127,7 @@ class _BoundColumnDescr(object):
             name=self.name,
             doc=self.doc,
             metadata=self.metadata,
-            currency_conversion=None,
+            currency_conversion=currency_conversion,
         )
 
 
@@ -250,8 +266,24 @@ class BoundColumn(LoadableTerm):
             Column producing the same data as ``self``, but currency-converted
             into ``currency``.
         """
+        if hasattr(self.dataset, 'extra_coords'):
+            name = self.dataset.extra_coords['item']
+        else:
+            name = self.name
+
+        if self.dtype != float64_dtype:
+            raise TypeError(
+                'The .fx method cannot be called on {} because {} does not '
+                'have a float64 dtype.'.format(self, name)
+            )
+
         conversion = self._currency_conversion
-        if conversion is not None and conversion.currency == currency:
+        if conversion is Disallowed:
+            raise TypeError(
+                'The .fx method cannot be called on {} because {} is not '
+                'currency aware.'.format(self, name)
+            )
+        elif conversion is not None and conversion.currency == currency:
             return self
 
         return self._replace(
@@ -265,6 +297,8 @@ class BoundColumn(LoadableTerm):
     def currency_conversion(self):
         """Specification for currency conversions applied for this term.
         """
+        if self._currency_conversion is Disallowed:
+            return None
         return self._currency_conversion
 
     @property
@@ -294,7 +328,7 @@ class BoundColumn(LoadableTerm):
         """
         out = '.'.join([self.dataset.qualname, self.name])
         conversion = self._currency_conversion
-        if conversion is not None:
+        if conversion is not Disallowed and conversion is not None:
             out += '.fx({!r})'.format(conversion.currency.code)
         return out
 
