@@ -242,6 +242,7 @@ class BoundColumn(LoadableTerm):
             doc=self.__doc__,
             metadata=self._metadata,
             currency_conversion=self._currency_conversion,
+            currency_aware=self._currency_aware,
         )
         kw.update(kwargs)
 
