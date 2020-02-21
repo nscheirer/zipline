@@ -408,8 +408,8 @@ class InternationalEquityTestCase(WithInternationalPricingPipelineEngine,
 
         assert_equal(
             str(exc.exception),
-            'The .fx method cannot be called on Fundamentals.shs_float_af::flo'
-            'at64 because shs_float_af is not currency aware.',
+            'The .fx method cannot be called on EquityPricing.volume because '
+            'it does not produce currency-denominated data.',
         )
 
     def check_expected_latest_value(self, calendar, col, date, asset, value):

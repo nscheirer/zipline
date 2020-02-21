@@ -168,7 +168,7 @@ class BoundColumn(LoadableTerm):
                 metadata,
                 currency_conversion,
                 currency_aware):
-        if currency_aware and self.dtype != float64_dtype:
+        if currency_aware and dtype != float64_dtype:
             raise ValueError(
                 '{} cannot be constructed with currency_aware={}, dtype={}. '
                 'Currency aware columns must have a float64 dtype.'.format(
