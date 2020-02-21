@@ -33,7 +33,6 @@ from zipline.utils.preprocess import preprocess
 from zipline.utils.string_formatting import bulleted_list
 
 
-Disallowed = sentinel('Disallowed')
 IsSpecialization = sentinel('IsSpecialization')
 
 
@@ -115,11 +114,6 @@ class _BoundColumnDescr(object):
         We don't bind to datasets at class creation time so that subclasses of
         DataSets produce different BoundColumns.
         """
-        if self.currency_aware:
-            currency_conversion = None
-        else:
-            currency_conversion = Disallowed
-
         return BoundColumn(
             dtype=self.dtype,
             missing_value=self.missing_value,
@@ -127,7 +121,8 @@ class _BoundColumnDescr(object):
             name=self.name,
             doc=self.doc,
             metadata=self.metadata,
-            currency_conversion=currency_conversion,
+            currency_conversion=None,
+            currency_aware=self.currency_aware,
         )
 
 
@@ -150,6 +145,8 @@ class BoundColumn(LoadableTerm):
         The name of this column.
     metadata : dict
         Extra metadata associated with this column.
+    currency_aware : bool
+        Whether or not this column produces currency-denominated data.
 
     Notes
     -----
@@ -169,7 +166,18 @@ class BoundColumn(LoadableTerm):
                 name,
                 doc,
                 metadata,
-                currency_conversion):
+                currency_conversion,
+                currency_aware):
+        if currency_aware and self.dtype != float64_dtype:
+            raise ValueError(
+                '{} cannot be constructed with currency_aware={}, dtype={}. '
+                'Currency aware columns must have a float64 dtype.'.format(
+                    name,
+                    currency_aware,
+                    dtype,
+                )
+            )
+
         return super(BoundColumn, cls).__new__(
             cls,
             domain=dataset.domain,
@@ -181,6 +189,7 @@ class BoundColumn(LoadableTerm):
             doc=doc,
             metadata=metadata,
             currency_conversion=currency_conversion,
+            currency_aware=currency_aware,
         )
 
     def _init(self,
@@ -189,12 +198,14 @@ class BoundColumn(LoadableTerm):
               doc,
               metadata,
               currency_conversion,
+              currency_aware,
               *args, **kwargs):
         self._dataset = dataset
         self._name = name
         self.__doc__ = doc
         self._metadata = metadata
         self._currency_conversion = currency_conversion
+        self._currency_aware = currency_aware
         return super(BoundColumn, self)._init(*args, **kwargs)
 
     @classmethod
@@ -204,6 +215,7 @@ class BoundColumn(LoadableTerm):
                          doc,
                          metadata,
                          currency_conversion,
+                         currency_aware,
                          *args, **kwargs):
         return (
             super(BoundColumn, cls)._static_identity(*args, **kwargs),
@@ -212,6 +224,7 @@ class BoundColumn(LoadableTerm):
             doc,
             frozenset(sorted(metadata.items(), key=first)),
             currency_conversion,
+            currency_aware,
         )
 
     def __lt__(self, other):
@@ -266,22 +279,13 @@ class BoundColumn(LoadableTerm):
             Column producing the same data as ``self``, but currency-converted
             into ``currency``.
         """
-        if hasattr(self.dataset, 'extra_coords'):
-            name = self.dataset.extra_coords['item']
-        else:
-            name = self.name
-
-        if self.dtype != float64_dtype:
-            raise TypeError(
-                'The .fx method cannot be called on {} because {} does not '
-                'have a float64 dtype.'.format(self, name)
-            )
-
         conversion = self._currency_conversion
-        if conversion is Disallowed:
+        currency_aware = self._currency_aware
+
+        if not currency_aware:
             raise TypeError(
-                'The .fx method cannot be called on {} because {} is not '
-                'currency aware.'.format(self, name)
+                'The .fx method cannot be called on {} because it does not '
+                'produce currency-denominated data.'.format(self.qualname)
             )
         elif conversion is not None and conversion.currency == currency:
             return self
@@ -297,8 +301,6 @@ class BoundColumn(LoadableTerm):
     def currency_conversion(self):
         """Specification for currency conversions applied for this term.
         """
-        if self._currency_conversion is Disallowed:
-            return None
         return self._currency_conversion
 
     @property
@@ -328,7 +330,7 @@ class BoundColumn(LoadableTerm):
         """
         out = '.'.join([self.dataset.qualname, self.name])
         conversion = self._currency_conversion
-        if conversion is not Disallowed and conversion is not None:
+        if conversion is not None:
             out += '.fx({!r})'.format(conversion.currency.code)
         return out
 
