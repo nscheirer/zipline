@@ -305,6 +305,13 @@ class BoundColumn(LoadableTerm):
         return self._currency_conversion
 
     @property
+    def currency_aware(self):
+        """
+        Whether or not this column produces currency-denominated data.
+        """
+        return self._currency_aware
+
+    @property
     def dataset(self):
         """
         The dataset to which this column is bound.
