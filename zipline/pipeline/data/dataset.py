@@ -170,9 +170,11 @@ class BoundColumn(LoadableTerm):
                 currency_aware):
         if currency_aware and dtype != float64_dtype:
             raise ValueError(
-                '{} cannot be constructed with currency_aware={}, dtype={}. '
-                'Currency aware columns must have a float64 dtype.'.format(
+                'The {} column on dataset {} cannot be constructed with '
+                'currency_aware={}, dtype={}. Currency aware columns must '
+                'have a float64 dtype.'.format(
                     name,
+                    dataset,
                     currency_aware,
                     dtype,
                 )
@@ -281,11 +283,10 @@ class BoundColumn(LoadableTerm):
             into ``currency``.
         """
         conversion = self._currency_conversion
-        currency_aware = self._currency_aware
 
-        if not currency_aware:
+        if not self._currency_aware:
             raise TypeError(
-                'The .fx method cannot be called on {} because it does not '
+                'The .fx() method cannot be called on {} because it does not '
                 'produce currency-denominated data.'.format(self.qualname)
             )
         elif conversion is not None and conversion.currency == currency:

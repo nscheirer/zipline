@@ -404,12 +404,12 @@ class InternationalEquityTestCase(WithInternationalPricingPipelineEngine,
 
     def test_cannot_convert_volume_data(self):
         with self.assertRaises(TypeError) as exc:
-            Pipeline({'volume': EquityPricing.volume.fx('EUR').latest})
+            EquityPricing.volume.fx('EUR')
 
         assert_equal(
             str(exc.exception),
-            'The .fx method cannot be called on EquityPricing.volume because '
-            'it does not produce currency-denominated data.',
+            'The .fx() method cannot be called on EquityPricing.volume '
+            'because it does not produce currency-denominated data.',
         )
 
     def check_expected_latest_value(self, calendar, col, date, asset, value):

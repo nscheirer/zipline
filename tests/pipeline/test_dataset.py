@@ -5,6 +5,7 @@ from textwrap import dedent
 from zipline.pipeline.data.dataset import Column, DataSet
 from zipline.testing import chrange, ZiplineTestCase
 from zipline.testing.predicates import assert_messages_equal
+from zipline.utils.numpy_utils import datetime64ns_dtype
 
 
 class SomeDataSet(DataSet):
@@ -21,6 +22,10 @@ class LargeDataSet(DataSet):
         name: Column(dtype=float)
         for name in chrange('a', 'z')
     })
+
+
+class InvalidColumnDataset(DataSet):
+    currency_aware_date = Column(dtype=datetime64ns_dtype, currency_aware=True)
 
 
 class GetColumnTestCase(ZiplineTestCase):
@@ -94,6 +99,18 @@ class GetColumnTestCase(ZiplineTestCase):
               - z"""
         )
         assert_messages_equal(result, expected)
+
+    def test_get_column_failure_currency_error_message(self):
+        with self.assertRaises(ValueError) as exc:
+            InvalidColumnDataset.get_column('currency_aware_date')
+
+        assert_messages_equal(
+            str(exc.exception),
+            "The currency_aware_date column on dataset <DataSet: 'InvalidColum"
+            "nDataset', domain=GENERIC> cannot be constructed with currency_aw"
+            "are=True, dtype=datetime64[ns]. Currency aware columns must have "
+            "a float64 dtype.",
+        )
 
 
 class ReprTestCase(ZiplineTestCase):
