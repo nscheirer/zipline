@@ -244,6 +244,7 @@ class TradingAlgorithm(object):
 
         self._platform = platform
         self.logger = None
+        self.gen = None
 
         # XXX: This is kind of a mess.
         # We support passing a data_portal in `run`, but we need an asset
@@ -617,26 +618,28 @@ class TradingAlgorithm(object):
     def run(self, data_portal=None):
         """Run the algorithm.
         """
-        # HACK: I don't think we really want to support passing a data portal
-        # this late in the long term, but this is needed for now for backwards
-        # compat downstream.
-        if data_portal is not None:
-            self.data_portal = data_portal
-            self.asset_finder = data_portal.asset_finder
-        elif self.data_portal is None:
-            raise RuntimeError(
-                "No data portal in TradingAlgorithm.run().\n"
-                "Either pass a DataPortal to TradingAlgorithm() or to run()."
-            )
-        else:
-            assert self.asset_finder is not None, \
-                "Have data portal without asset_finder."
+        if self.gen is None:
+            # HACK: I don't think we really want to support passing a data portal
+            # this late in the long term, but this is needed for now for backwards
+            # compat downstream.
+            if data_portal is not None:
+                self.data_portal = data_portal
+                self.asset_finder = data_portal.asset_finder
+            elif self.data_portal is None:
+                raise RuntimeError(
+                    "No data portal in TradingAlgorithm.run().\n"
+                    "Either pass a DataPortal to TradingAlgorithm() or to run()."
+                )
+            else:
+                assert self.asset_finder is not None, \
+                    "Have data portal without asset_finder."
+            self.gen = self.get_generator()
 
         # Create zipline and loop through simulated_trading.
         # Each iteration returns a perf dictionary
         try:
             perfs = []
-            for perf in self.get_generator():
+            for perf in self.gen:
                 perfs.append(perf)
 
             # convert perf dict to pandas dataframe
@@ -648,6 +651,25 @@ class TradingAlgorithm(object):
             self.metrics_tracker = None
 
         return daily_stats
+
+    def step(self, data_portal=None):
+        if self.gen is None:
+            # HACK: I don't think we really want to support passing a data portal
+            # this late in the long term, but this is needed for now for backwards
+            # compat downstream.
+            if data_portal is not None:
+                self.data_portal = data_portal
+                self.asset_finder = data_portal.asset_finder
+            elif self.data_portal is None:
+                raise RuntimeError(
+                    "No data portal in TradingAlgorithm.run().\n"
+                    "Either pass a DataPortal to TradingAlgorithm() or to run()."
+                )
+            else:
+                assert self.asset_finder is not None, \
+                    "Have data portal without asset_finder."
+            self.gen = self.get_generator()
+        return next(self.gen)
 
     def _create_daily_stats(self, perfs):
         # create daily and cumulative stats dataframe

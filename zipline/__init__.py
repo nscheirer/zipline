@@ -27,6 +27,7 @@ from . import utils
 from .utils.numpy_utils import numpy_version
 from .utils.pandas_utils import new_pandas
 from .utils.run_algo import run_algorithm
+from .utils.run_algo import create_algorithm
 from ._version import get_versions
 
 # These need to happen after the other imports.
@@ -85,6 +86,7 @@ __all__ = [
     'get_calendar',
     'gens',
     'run_algorithm',
+    'create_algorithm',
     'utils',
     'extension_args'
 ]

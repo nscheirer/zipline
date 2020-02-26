@@ -179,7 +179,7 @@ def ensure_benchmark_data(symbol, first_date, last_date, now, trading_day,
     )
 
     try:
-        data = get_benchmark_returns(symbol)
+        data = get_benchmark_returns(symbol, token=environ.get('IEX_TOKEN', None))
         data.to_csv(get_data_filepath(filename, environ))
     except (OSError, IOError, HTTPError):
         logger.exception('Failed to cache the new benchmark returns')
@@ -210,7 +210,7 @@ def _load_cached_data(filename, first_date, last_date, now, environ=None):
                 header=None,
                 # Pass squeeze=True so that we get a series instead of a frame.
                 squeeze=True,
-            ).tz_localize('UTC')
+            ).tz_convert('UTC')
 
             if has_data_for_dates(data, first_date, last_date):
                 return data

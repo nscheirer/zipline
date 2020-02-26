@@ -16,7 +16,7 @@ import pandas as pd
 import requests
 
 
-def get_benchmark_returns(symbol):
+def get_benchmark_returns(symbol, token=None):
     """
     Get a Series of benchmark returns from IEX associated with `symbol`.
     Default is `SPY`.
@@ -29,14 +29,17 @@ def get_benchmark_returns(symbol):
     The data is provided by IEX (https://iextrading.com/), and we can
     get up to 5 years worth of data.
     """
-    r = requests.get(
-        'https://api.iextrading.com/1.0/stock/{}/chart/5y'.format(symbol)
-    )
-    data = r.json()
+    if token is not None:
+        r = requests.get(
+            'https://cloud.iexapis.com/stable/stock/{}/chart/5y?token={}'.format(symbol, token)
+        )
+        data = r.json()
 
-    df = pd.DataFrame(data)
+        df = pd.DataFrame(data)
 
-    df.index = pd.DatetimeIndex(df['date'])
-    df = df['close']
+        df.index = pd.DatetimeIndex(df['date'])
+        df = df['close']
 
-    return df.sort_index().tz_localize('UTC').pct_change(1).iloc[1:]
+        return df.sort_index().tz_localize('UTC').pct_change(1).iloc[1:]
+    else:
+        return None
