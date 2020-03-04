@@ -78,6 +78,8 @@ def has_data_for_dates(series_or_df, first_date, last_date):
 
 def load_benchmark_data(trading_day=None,
                         trading_days=None,
+                        first_date=None,
+                        last_date=None,
                         bm_symbol='SPY',
                         environ=None):
     """
@@ -113,11 +115,13 @@ def load_benchmark_data(trading_day=None,
     if trading_days is None:
         trading_days = get_calendar('XNYS').all_sessions
 
-    first_date = trading_days[0]
+    if first_date is None:
+        first_date = trading_days[0]
     now = pd.Timestamp.utcnow()
 
     # we will fill missing benchmark data through latest trading date
-    last_date = trading_days[trading_days.get_loc(now, method='ffill')]
+    if last_date is None:
+        last_date = trading_days[trading_days.get_loc(now, method='ffill')]
 
     br = ensure_benchmark_data(
         bm_symbol,

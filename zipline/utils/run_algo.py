@@ -82,7 +82,7 @@ class Algorithm:
         This is shared between the cli and :func:`zipline.run_algo`.
         """
         if benchmark_returns is None:
-            benchmark_returns = load_benchmark_data(environ=environ)
+            benchmark_returns = load_benchmark_data(last_date=end, environ=environ)
 
         if algotext is not None:
             if local_namespace:

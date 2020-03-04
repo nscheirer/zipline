@@ -33,13 +33,16 @@ def get_benchmark_returns(symbol, token=None):
         r = requests.get(
             'https://cloud.iexapis.com/stable/stock/{}/chart/5y?token={}'.format(symbol, token)
         )
-        data = r.json()
+        if r.status_code == 200:
+            data = r.json()
 
-        df = pd.DataFrame(data)
+            df = pd.DataFrame(data)
 
-        df.index = pd.DatetimeIndex(df['date'])
-        df = df['close']
+            df.index = pd.DatetimeIndex(df['date'])
+            df = df['close']
 
-        return df.sort_index().tz_localize('UTC').pct_change(1).iloc[1:]
+            return df.sort_index().tz_localize('UTC').pct_change(1).iloc[1:]
+        else:
+            r.raise_for_status()
     else:
         return None
